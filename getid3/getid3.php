@@ -1667,7 +1667,7 @@ class getID3
 			$maker = $this->standartMaker($this->info['jpg']['exif']['EXIF']['MakerNote']);
 		}
 		if (empty($maker)) {
-			$maker = '.unknown';
+			$maker = 'unknown';
 		}
 		$this->info['standart']['maker'] = $maker;
 		
