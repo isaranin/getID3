@@ -1606,7 +1606,7 @@ class getID3
 	
 	protected function standartDateTime($value, $inTemplate) {
 		$res = null;
-		$date = DateTime::createFromFormat($inTemplate, $value, new DateTimeZone('UTC'));
+		$date = DateTime::createFromFormat($inTemplate, $value);
 		if (($date !== false) && (intval($date->format('U')) > 0)) {
 			$res = intval($date->format('U'));
 		}
@@ -1638,15 +1638,18 @@ class getID3
 					$this->info['xmp']['xap']['CreateDate'], 
 					'Y-m-d\TH:i:sP');
 		}
-		$createTime = filectime($this->filename);
-		if ($createTime !== false) {
-			$dateTime[] = $createTime;
+		$dateTime = array_filter($dateTime);
+		if (empty($dateTime)) {
+			$createTime = filectime($this->filename);
+			if ($createTime !== false) {
+				$dateTime[] = $createTime;
+			}
+			$modifyTime = filemtime($this->filename);
+			if ($modifyTime !== false) {
+				$dateTime[] = $modifyTime;
+			}
 		}
-		$modifyTime = filemtime($this->filename);
-		if ($modifyTime !== false) {
-			$dateTime[] = $modifyTime;
-		}
-		$dateTime = min(array_filter($dateTime));
+		$dateTime = min($dateTime);
 		if (!empty($dateTime)) {
 			$this->info['standart']['datetime'] = date('Y:m:d H:i:s', $dateTime);
 		}
