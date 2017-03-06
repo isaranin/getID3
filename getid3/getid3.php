@@ -88,6 +88,9 @@ class getID3
 
 	// public: Optional tag/comment calucations
 	public $option_extra_info        = true;  // Calculate additional info such as bitrate, channelmode etc
+	
+// public: Optional standartize tags
+	public $option_standart			 = true;  // 
 
 	// public: Optional handling of embedded attachments (e.g. images)
 	public $option_save_attachments  = true; // defaults to true (ATTACHMENTS_INLINE) for backward compatibility
@@ -478,7 +481,7 @@ class getID3
 				$this->CalculateReplayGain();
 				$this->ProcessAudioStreams();
 			}
-
+			
 			// get the MD5 sum of the audio/video portion of the file - without ID3/APE/Lyrics3/etc header/footer tags
 			if ($this->option_md5_data) {
 				// do not calc md5_data if md5_data_source is present - set by flac only - future MPC/SV8 too
@@ -491,7 +494,11 @@ class getID3
 			if ($this->option_sha1_data) {
 				$this->getHashdata('sha1');
 			}
-
+			
+			if ($this->option_standart) {
+				$this->ProcessStandartize();
+			}
+			
 			// remove undesired keys
 			$this->CleanUp();
 
@@ -1595,6 +1602,76 @@ class getID3
 			}
 		}
 		return true;
+	}
+	
+	protected function standartDateTime($value, $inTemplate) {
+		$res = null;
+		$date = DateTime::createFromFormat($inTemplate, $value, new DateTimeZone('UTC'));
+		if (($date !== false) && (intval($date->format('U')) > 0)) {
+			$res = intval($date->format('U'));
+		}
+		
+		return $res;
+	}
+	
+	protected function standartMaker($value) {
+		return trim(preg_replace('/[^A-Za-z0-9 -_.]/', '', $value));
+	}
+	
+	public function ProcessStandartize() {
+		$this->info['standart'] = [];
+		
+		// date time modifications
+		$dateTime = [];
+		if (isset($this->info['jpg']['exif']['EXIF']['DateTimeOriginal'])) {
+			$dateTime[] = $this->standartDateTime(
+					$this->info['jpg']['exif']['EXIF']['DateTimeOriginal'], 
+					'Y:m:d H:i:s');
+		}
+		if (isset($this->info['jpg']['exif']['IFD0']['DateTime'])) {
+			$dateTime[] = $this->standartDateTime(
+					$this->info['jpg']['exif']['IFD0']['DateTime'], 
+					'Y:m:d H:i:s');
+		}
+		if (isset($this->info['xmp']['xap']['CreateDate'])) {
+			$dateTime[] = $this->standartDateTime(
+					$this->info['xmp']['xap']['CreateDate'], 
+					'Y-m-d\TH:i:sP');
+		}
+		$createTime = filectime($this->filename);
+		if ($createTime !== false) {
+			$dateTime[] = $createTime;
+		}
+		$modifyTime = filemtime($this->filename);
+		if ($modifyTime !== false) {
+			$dateTime[] = $modifyTime;
+		}
+		$dateTime = min(array_filter($dateTime));
+		if (!empty($dateTime)) {
+			$this->info['standart']['datetime'] = date('Y:m:d H:i:s', $dateTime);
+		}
+		
+		$maker = '';
+		
+		if (empty($maker) && isset($this->info['jpg']['exif']['IFD0']['Make'])) {
+			$maker = $this->standartMaker($this->info['jpg']['exif']['IFD0']['Make']);
+			$model = '';
+			if (isset($this->info['jpg']['exif']['IFD0']['Model'])) {
+				$model = $this->standartMaker($this->info['jpg']['exif']['IFD0']['Model']);
+			}
+			if (!empty($model)) {
+				$maker .= '_'.$model;
+			}
+		}
+		if (empty($maker) && isset($this->info['jpg']['exif']['EXIF']['MakerNote'])) {
+			$maker = $this->standartMaker($this->info['jpg']['exif']['EXIF']['MakerNote']);
+		}
+		if (empty($maker)) {
+			$maker = '.unknown';
+		}
+		$this->info['standart']['maker'] = $maker;
+		
+		// maker note modifications
 	}
 
 	public function getid3_tempnam() {
