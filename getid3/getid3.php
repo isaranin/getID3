@@ -1608,7 +1608,10 @@ class getID3
 		$res = null;
 		$date = DateTime::createFromFormat($inTemplate, $value);
 		if (($date !== false) && (intval($date->format('U')) > 0)) {
-			$res = intval($date->format('U'));
+			$year = intval($date->format('Y'));
+			if ($year > 1980 && $year < 2999) {
+				$res = intval($date->format('U'));
+			}
 		}
 		
 		return $res;
@@ -1637,6 +1640,24 @@ class getID3
 			$dateTime[] = $this->standartDateTime(
 					$this->info['xmp']['xap']['CreateDate'], 
 					'Y-m-d\TH:i:sP');
+		}
+		
+		$dateTime = array_filter($dateTime);
+		
+		$templates = [
+			'(\d{4}\d{2}\d{2}\d{2}\d{2}\d{2})' => 'YmdHis',
+			'(\d{10})\d{3}' => 'U',
+			'(\d{4}-\d{2}-\d{2} \d{2}.\d{2}.\d{2})' => 'Y-m-d H.i.s',
+			'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})' => 'Y-m-d H:i:s',
+			'(\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2})' => 'Ymd_His',
+			'(\d{4}\d{2}\d{2})' => 'Ymd',
+		];
+		foreach($templates as $tpl => $dateFormat) {
+			if (preg_match('/'.$tpl.'/i', $this->filename, $matches) > 0) {
+				$dateTime[] = $this->standartDateTime(
+					$matches[1], 
+					$dateFormat);
+			}
 		}
 		$dateTime = array_filter($dateTime);
 		if (empty($dateTime)) {
